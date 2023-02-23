@@ -1,0 +1,59 @@
+version: '3'
+
+services:
+
+  logstash:
+    # https://hub.docker.com/r/opensearchproject/logstash-oss-with-opensearch-output-plugin
+    image: opensearchproject/logstash-oss-with-opensearch-output-plugin:8.4.0
+    container_name: logstash
+    volumes:
+      - ./test.csv:/usr/share/logstash/test.csv
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf 
+    depends_on:
+      - opensearch
+
+  opensearch:
+    # https://opensearch.org/docs/latest/install-and-configure/install-opensearch/docker/
+    # https://hub.docker.com/r/opensearchproject/opensearch
+    image: opensearchproject/opensearch:2.5.0
+    container_name: opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true # Disable JVM heap memory swapping
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # Set min and max JVM heap sizes to at least 50% of system RAM
+    ulimits:
+      memlock:
+        soft: -1 # Set memlock to unlimited (no soft or hard limit)
+        hard: -1
+      nofile:
+        soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
+        hard: 65536
+    volumes:
+      - ./internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml
+    ports:
+      - 9200:9200 # REST API
+      - 9600:9600 # Performance Analyzer
+
+  dashboard:
+    image: opensearchproject/opensearch-dashboards:2.5.0 
+    container_name: opensearch-dashboards
+    ports:
+      - 5601:5601 # Map host port 5601 to container port 5601
+    expose:
+      - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
+      OPENSEARCH_USERNAME: 'kibanaserver'
+      OPENSEARCH_PASSWORD: 'kibanaserver'
+    depends_on:
+      - opensearch
+
+  curator:
+    build:
+      context: ./curator
+    container_name: curator
+    volumes:
+      - ./curator/config.yml:/curator/config.yml
+      - ./curator/action.yml:/curator/action.yml
+    depends_on:
+      - opensearch

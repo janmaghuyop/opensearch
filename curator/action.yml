@@ -1,0 +1,36 @@
+---
+# https://www.elastic.co/guide/en/elasticsearch/client/curator/current/ex_delete_indices.html
+# Remember, leave a key empty if there is no value.  None will be a string,
+# not a Python "NoneType"
+actions:
+  1:
+    action: delete_indices
+    description: >-
+      Delete indices for staging and dev1234, 2 days of logs only
+    options:
+      ignore_empty_list: True
+    filters:
+    - filtertype: pattern
+      kind: regex
+      value: '^logstash.*(dev|staging|test).*$'
+    - filtertype: age
+      source: creation_date
+      direction: older
+      unit: days
+      unit_count: 2
+  2:
+    action: delete_indices
+    description: >-
+      Delete production logs, 30 days of logs only
+    options:
+      ignore_empty_list: True
+    filters:
+    - filtertype: pattern
+      kind: regex
+      value: '^logstash.*production.*$'
+    - filtertype: age
+      source: creation_date
+      direction: older
+      unit: days
+      unit_count: 15
+
